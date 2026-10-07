@@ -5,6 +5,7 @@ services:
     container_name: port-catalog
     restart: unless-stopped
     network_mode: host
+    pid: host  # lets it name the process behind each host port (read-only /proc access)
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /etc/ufw:/etc/ufw:ro

@@ -92,6 +92,7 @@ td.arrow{color:var(--muted);padding-left:0;padding-right:0;width:1%}
 .tag.info{color:var(--muted)}
 .tag.bad{color:var(--bad);border-color:#f8514966}
 .dash{color:#484f58}
+.cmd{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 ul.notes{list-style:none;margin:0;padding:0}
 ul.notes li{display:flex;gap:8px;font-size:13px;margin-bottom:3px}
 ul.notes li:before{content:"";flex:none;width:7px;height:7px;border-radius:50%;margin-top:7px;background:var(--muted)}
@@ -253,10 +254,18 @@ function rowText(r) {
 function rowHtml(r) {
   const ext = isExt(r.bind_ip), docker = r.origin === "docker";
   const bind = r.bind_ip || (docker ? "0.0.0.0" : "—");
-  const cont = r.container
-    ? '<div class="mono">' + esc(r.container) + (r.host_network ? ' <span class="tag info">host network</span>' : "") + '</div>' +
-      '<div class="sub">' + esc([r.service, r.image].filter(Boolean).join(" · ")) + '</div>'
-    : dash;
+  let cont = dash;
+  if (r.container) {
+    cont = '<div class="mono">' + esc(r.container) + (r.host_network ? ' <span class="tag info">host network</span>' : "") + '</div>' +
+      '<div class="sub">' + esc([r.service, r.image].filter(Boolean).join(" · ")) + '</div>';
+  } else if (r.process) {
+    cont = '<div class="mono">' + esc(r.process.name) + ' <span class="sub">pid ' + r.process.pid + '</span></div>' +
+      '<div class="sub cmd" title="' + esc(r.process.cmdline) + '">' + esc(r.process.cmdline) + '</div>';
+  } else if (r.guess) {
+    cont = '<div class="mono">' + esc(r.guess) + ' <span class="tag info" title="Guessed from the port number">guess</span></div>';
+  } else if (!docker) {
+    cont = '<span class="sub">unknown process</span>';
+  }
   const bindTag = '<span class="tag ' + (ext ? "warn" : "ok") + '">' + esc(bind) + '</span>';
   const ufw = r.ufw.length ? '<span class="tag ok" title="' + esc(r.ufw.map(u => u.action + " " + u.proto + " from " + u.src).join("; ")) + '">yes</span>' : dash;
   const ngx = r.nginx.length ? r.nginx.map(n => '<span class="tag ok" title="' + esc(n.upstream) + '">' + esc(n.server) + '</span>').join("") : dash;
@@ -292,7 +301,7 @@ function render() {
     const list = groups.get(k), dir = (list.find(r => r.compose_dir) || {}).compose_dir;
     h += '<section class="group"><div class="ghead"><h3>' + esc(k) + '</h3><span>' + list.length + (list.length === 1 ? " port" : " ports") +
       (dir ? ' · <span class="mono">' + esc(dir) + '</span>' : "") + '</span></div><div class="tw"><table><thead><tr>' +
-      '<th>Host port</th><th></th><th>Container port</th><th>Container</th><th>Bind IP</th><th>UFW</th><th>Nginx</th><th>Notes</th></tr></thead><tbody>' +
+      '<th>Host port</th><th></th><th>Container port</th><th>Container / process</th><th>Bind IP</th><th>UFW</th><th>Nginx</th><th>Notes</th></tr></thead><tbody>' +
       list.map(rowHtml).join("") + '</tbody></table></div></section>';
   });
 

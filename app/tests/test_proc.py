@@ -11,7 +11,7 @@ TCP6 = """  sl  local_address rem_address   st
 
 def test_only_listen_kept():
     rows = parse_proc_net(TCP, "tcp")
-    assert rows == [{"proto": "tcp", "bind_ip": "127.0.0.1", "port": 8081}]
+    assert rows == [{"proto": "tcp", "bind_ip": "127.0.0.1", "port": 8081, "inode": 0}]
 
 
 def test_ipv6_loopback():
@@ -20,3 +20,16 @@ def test_ipv6_loopback():
 
 def test_udp_keeps_all():
     assert len(parse_proc_net(TCP, "udp")) == 2
+
+
+def test_collect_processes(tmp_path):
+    import os
+    from app.collectors import collect_processes
+    d = tmp_path / "123"; (d / "fd").mkdir(parents=True)
+    (d / "comm").write_text("nginx\n"); (d / "cmdline").write_bytes(b"nginx\0-g\0daemon off;")
+    try:
+        os.symlink("socket:[555]", d / "fd" / "3")
+    except OSError:
+        return  # symlinks unavailable (Windows without privileges)
+    found, err = collect_processes({555}, str(tmp_path))
+    assert found[555] == {"pid": 123, "name": "nginx", "cmdline": "nginx -g daemon off;"} and err is None
