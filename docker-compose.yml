@@ -11,7 +11,7 @@ services:
       - /etc/nginx:/etc/nginx:ro
       - ./data:/data
     environment:
-      PORTCATALOG_BIND: "127.0.0.1"
+      PORTCATALOG_BIND: "0.0.0.0"
       PORTCATALOG_PORT: "9780"
-      PORT_RANGE_START: "8000"
-      PORT_RANGE_END: "9999"
+      PORT_RANGE_START: "1000"
+      PORT_RANGE_END: "59999"
