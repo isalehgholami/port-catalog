@@ -23,10 +23,11 @@ def cat(monkeypatch, tmp_path):
     monkeypatch.setattr(main, "collect_nginx", lambda: ([{"file": "f", "server_names": ["a.com"], "listen": [],
         "proxy_pass": ["http://127.0.0.1:8081"], "ssl": False}], None))
     monkeypatch.setattr(main, "collect_host_sockets", lambda: ([
-        {"proto": "tcp", "bind_ip": "0.0.0.0", "port": 22},
+        {"proto": "tcp", "bind_ip": "0.0.0.0", "port": 22, "inode": 7},
         {"proto": "tcp6", "bind_ip": "::", "port": 22},
         {"proto": "tcp", "bind_ip": "127.0.0.1", "port": 8081},
         {"proto": "udp", "bind_ip": "0.0.0.0", "port": 8080}], None))
+    monkeypatch.setattr(main, "collect_processes", lambda i: ({7: {"pid": 1, "name": "sshd", "cmdline": "sshd -D"}}, None))
     return main.build_catalog()
 
 
@@ -61,3 +62,8 @@ def test_api_token_and_annotation(cat, monkeypatch):
     c.post("/api/annotations", json={"port": "8081", "text": " "}, headers=h)
     assert c.get("/api/catalog", headers=h).json()["port_rows"][0]["annotation"] is None
     assert c.post("/api/annotations", json={"port": "x"}, headers=h).status_code == 400
+
+
+def test_process_name(cat):
+    ssh = cat["port_rows"][-1]
+    assert ssh["process"]["name"] == "sshd" and ssh["guess"] == "ssh"

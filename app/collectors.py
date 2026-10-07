@@ -205,7 +205,8 @@ def parse_proc_net(text: str, proto: str) -> list[dict[str, Any]]:
             continue
         try:
             h, p = parts[1].split(":")
-            out.append({"proto": proto, "bind_ip": _hex_ip(h), "port": int(p, 16)})
+            inode = int(parts[9]) if len(parts) > 9 and parts[9].isdigit() else 0
+            out.append({"proto": proto, "bind_ip": _hex_ip(h), "port": int(p, 16), "inode": inode})
         except (ValueError, OSError):
             continue
     return out
@@ -223,3 +224,54 @@ def collect_host_sockets(proc_dir: str = "/proc/net") -> tuple[list[dict[str, An
             missing.append(name)
     err = "cannot read /proc/net (Linux host required)" if len(missing) == 4 else None
     return out, err
+
+
+# -------------------------------------------------------------- processes
+WELL_KNOWN = {
+    22: "ssh", 25: "smtp", 53: "dns", 80: "http", 443: "https", 3306: "mysql",
+    5432: "postgres", 6379: "redis", 27017: "mongodb", 5672: "rabbitmq",
+    9200: "elasticsearch", 11211: "memcached",
+}
+
+
+def collect_processes(inodes: set[int], proc_dir: str = "/proc") -> tuple[dict[int, dict[str, Any]], str | None]:
+    """Map socket inodes to the owning process (needs root, and ``pid: host`` in Docker)."""
+    found: dict[int, dict[str, Any]] = {}
+    try:
+        pids = sorted((d for d in os.listdir(proc_dir) if d.isdigit()), key=int)
+    except OSError as e:
+        return {}, f"process names unavailable: {e}"
+    denied = 0
+    for pid in pids:
+        if len(found) == len(inodes):
+            break
+        fd_dir = os.path.join(proc_dir, pid, "fd")
+        try:
+            fds = os.listdir(fd_dir)
+        except OSError:
+            denied += 1
+            continue
+        mine: list[int] = []
+        for fd in fds:
+            try:
+                link = os.readlink(os.path.join(fd_dir, fd))
+            except OSError:
+                continue
+            if link.startswith("socket:[") and int(link[8:-1]) in inodes:
+                mine.append(int(link[8:-1]))
+        mine = [i for i in mine if i not in found]
+        if not mine:
+            continue
+        try:
+            with open(os.path.join(proc_dir, pid, "comm"), encoding="utf-8") as f:
+                name = f.read().strip()
+            with open(os.path.join(proc_dir, pid, "cmdline"), "rb") as f:
+                cmd = f.read().replace(bytes(1), b" ").decode("utf-8", "replace").strip()
+        except OSError:
+            name, cmd = "?", ""
+        for i in mine:
+            found[i] = {"pid": int(pid), "name": name, "cmdline": cmd[:160]}
+    err = None
+    if inodes and not found and denied:
+        err = "process names unavailable (run as root; in Docker add pid: host)"
+    return found, err

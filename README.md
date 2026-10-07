@@ -59,6 +59,7 @@ If UFW or nginx aren't mounted the app still runs; the missing source shows up a
 - **docker.sock is root.** Anyone who can talk to it controls the host. It is mounted `:ro`, but that only makes the socket file read-only, not the API. For hardening, point `DOCKER_HOST` at a read-only [docker-socket-proxy](https://github.com/Tecnativa/docker-socket-proxy) (allow `CONTAINERS=1` only). The container runs as root because the socket requires it.
 - **Docker bypasses UFW.** Published ports go through iptables' `DOCKER` chain, so a port can be reachable from outside with no UFW allow rule. The UI warns on every external bind. Prefer `ports: ["127.0.0.1:8081:8000"]` plus `proxy_pass http://127.0.0.1:8081;`. Never use container IPs as upstreams; they change on recreate.
 - **Don't expose the UI publicly.** It lists your whole attack surface. It binds `127.0.0.1` by default; use an SSH tunnel.
+- `pid: host` is set in the compose file so the tool can read `/proc/<pid>/fd` and name the process behind each host port (nginx, postgres, sshd…). It only reads; if you'd rather not share the PID namespace, remove it and ports fall back to a guess from the port number.
 - The only file written is `$DATA_DIR/annotations.json`.
 
 ## Development

@@ -39,13 +39,18 @@ def install(main) -> None:
          "listen": [{"addr": "0.0.0.0", "port": 443, "flags": ["ssl"]}],
          "proxy_pass": ["http://127.0.0.1:8082"], "ssl": True},
     ]
-    socks = [{"proto": "tcp", "bind_ip": "0.0.0.0", "port": 22},
+    socks = [{"proto": "tcp", "bind_ip": "0.0.0.0", "port": 22, "inode": 1},
              {"proto": "tcp6", "bind_ip": "::", "port": 22},
-             {"proto": "tcp", "bind_ip": "0.0.0.0", "port": 443},
-             {"proto": "tcp", "bind_ip": "127.0.0.1", "port": 5432},
+             {"proto": "tcp", "bind_ip": "0.0.0.0", "port": 80, "inode": 2},
+             {"proto": "tcp", "bind_ip": "0.0.0.0", "port": 443, "inode": 2},
+             {"proto": "tcp", "bind_ip": "127.0.0.1", "port": 5432, "inode": 3},
              {"proto": "tcp", "bind_ip": "0.0.0.0", "port": 9100},
              {"proto": "tcp", "bind_ip": "127.0.0.1", "port": 9780},
              {"proto": "udp", "bind_ip": "0.0.0.0", "port": 8084}]
+    procs = {1: {"pid": 811, "name": "sshd", "cmdline": "sshd: /usr/sbin/sshd -D [listener]"},
+             2: {"pid": 902, "name": "nginx", "cmdline": "nginx: master process /usr/sbin/nginx -g daemon on;"},
+             3: {"pid": 1204, "name": "postgres", "cmdline": "/usr/lib/postgresql/16/bin/postgres -D /var/lib/postgresql/16/main"}}
+    main.collect_processes = lambda inodes: (procs, None)
     main.collect_docker = lambda: (containers, None)
     main.collect_ufw = lambda: (ufw, None)
     main.collect_nginx = lambda: (sites, None)

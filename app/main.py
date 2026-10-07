@@ -13,10 +13,12 @@ from typing import Any
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
-from .collectors import collect_docker, collect_host_sockets, collect_nginx, collect_ufw
+from .collectors import (WELL_KNOWN, collect_docker, collect_host_sockets, collect_nginx,
+                         collect_processes, collect_ufw)
 from .ui import PAGE
 
 EXTERNAL_BINDS = {"", "0.0.0.0", "::", "*"}
+LOOPBACK = ("127.0.0.1", "::1")
 
 
 def _int_env(name: str, default: int) -> int:
@@ -88,6 +90,7 @@ def build_catalog() -> dict[str, Any]:
     ufw_rules, e_ufw = collect_ufw()
     sites, e_nginx = collect_nginx()
     socks, e_sock = collect_host_sockets()
+    procs, e_proc = collect_processes({x.get("inode", 0) for x in socks} - {0})
     ann = load_annotations()
 
     ufw_by_port: dict[int, list[dict]] = {}
@@ -133,13 +136,16 @@ def build_catalog() -> dict[str, Any]:
             continue
         cur = host_rows.get(s["port"])
         if cur is None:
-            host_rows[s["port"]] = {
+            cur = host_rows[s["port"]] = {
                 "host_port": s["port"], "bind_ip": s["bind_ip"], "container_port": None,
                 "container": None, "service": None, "project": None, "image": None,
                 "compose_dir": None, "origin": "host service", "host_network": False,
+                "process": None, "guess": WELL_KNOWN.get(s["port"]),
             }
-        elif cur["bind_ip"] in ("127.0.0.1", "::1") and s["bind_ip"] not in ("127.0.0.1", "::1"):
+        elif cur["bind_ip"] in LOOPBACK and s["bind_ip"] not in LOOPBACK:
             cur["bind_ip"] = s["bind_ip"]
+        if cur["process"] is None:
+            cur["process"] = procs.get(s.get("inode"))
     rows += host_rows.values()
 
     for row in rows:
@@ -163,7 +169,7 @@ def build_catalog() -> dict[str, Any]:
         "containers": containers,
         "nginx_sites": sites,
         "ufw_rules": ufw_rules,
-        "errors": {"docker": e_docker, "ufw": e_ufw, "nginx": e_nginx, "host_sockets": e_sock},
+        "errors": {"docker": e_docker, "ufw": e_ufw, "nginx": e_nginx, "host_sockets": e_sock, "processes": e_proc},
     }
 
 
@@ -220,7 +226,9 @@ def print_report(cat: dict[str, Any], out=sys.stdout) -> None:
         if name != group:
             group = name
             w(f"\n[{name}]")
-        src = r["container"] or "host process"
+        proc = r.get("process")
+        src = r["container"] or (f"{proc['name']} (pid {proc['pid']})" if proc else
+                                 f"{r['guess']}?" if r.get("guess") else "host process")
         ufw = "yes" if r["ufw"] else "no"
         ngx = ",".join(n["server"] for n in r["nginx"]) or "-"
         w(f"  {r['host_port']:<6} {r['bind_ip'] or '0.0.0.0':<15} -> {r['container_port'] or '-':<10} {src}  ufw={ufw}  nginx={ngx}")
