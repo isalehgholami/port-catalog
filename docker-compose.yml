@@ -1,0 +1,17 @@
+services:
+  port-catalog:
+    build: .
+    image: port-catalog:latest
+    container_name: port-catalog
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /etc/ufw:/etc/ufw:ro
+      - /etc/nginx:/etc/nginx:ro
+      - ./data:/data
+    environment:
+      PORTCATALOG_BIND: "127.0.0.1"
+      PORTCATALOG_PORT: "9780"
+      PORT_RANGE_START: "8000"
+      PORT_RANGE_END: "9999"
