@@ -1,6 +1,3 @@
-این نسخه‌ی مرتب‌شده به‌صورت یک discovery.md (به انگلیسی — چون ایجنت با اسپک انگلیسی دقیق‌تر و بدون ابهام کار می‌کنه؛ همه‌ی تصمیم‌های مهم هم توش pin شده):
-
-````markdown
 # Discovery — `port-catalog`
 
 **Version:** 1.0 (v1 scope) · **Status:** ready for implementation
@@ -409,11 +406,3 @@ Docker-label-based descriptions (`port-catalog.description`), Markdown export,
 snapshot diffing ("what changed since yesterday"), Go rewrite (~10 MB static
 binary), integrated read-only docker-socket-proxy mode, Prometheus metrics
 endpoint, per-project port ranges.
-````
-
-چند نکته برای دادنش به ایجنت:
-
-- فایل رو به عنوان `discovery.md` توی روت ریپو بذار و پرامپت اولیه‌ت فقط یه جمله باشه: «Read discovery.md and implement it fully, following §18 order.»
-- بخش‌های §5 (UFW bypass)، §9 (متن دقیق نوت‌ها) و §12 (کلیدهای JSON) رو دست نزن — این‌ها قرارداد هستن و ایجنت نباید خلاقیت به خرج بده.
-- بعد از تموم شدن، خودت AC‌های §17 رو روی سرور واقعی چک کن؛ مخصوصاً AC2 و AC7.
-- اگه ایجنتی داری که فارسی رو بهتر می‌فهمه یا خودت می‌خوای بخونیش، بگو تا نسخه فارسی همین سند رو هم بسازم.
